@@ -1,94 +1,59 @@
-const MIN = 100;
-const MAX = 999;
+// Get DOM elements
 const pinInput = document.getElementById('pin');
-const sha256HashView = document.getElementById('sha256-hash');
+const checkButton = document.getElementById('check');
 const resultView = document.getElementById('result');
+const sha256HashView = document.getElementById('sha256-hash');
 
-// a function to store in the local storage
-function store(key, value) {
-  localStorage.setItem(key, value);
+// Generate a random 3-digit number and its SHA256 hash
+function generateRandomHash() {
+    const randomNumber = Math.floor(Math.random() * 900) + 100; // Generates number between 100-999
+    return sha256(randomNumber.toString()).then(hash => {
+        sha256HashView.innerHTML = hash;
+        return randomNumber;
+    });
 }
 
-// a function to retrieve from the local storage
-function retrieve(key) {
-  return localStorage.getItem(key);
-}
-
-function getRandomArbitrary(min, max) {
-  let cached;
-  cached = Math.random() * (max - min) + min;
-  cached = Math.floor(cached);
-  return cached;
-}
-
-// a function to clear the local storage
-function clear() {
-  localStorage.clear();
-}
-
-// a function to generate sha256 hash of the given string
+// SHA256 hash function
 async function sha256(message) {
-  // encode as UTF-8
-  const msgBuffer = new TextEncoder().encode(message);
-
-  // hash the message
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-
-  // convert ArrayBuffer to Array
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-
-  // convert bytes to hex string
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-  return hashHex;
+    // Encode as UTF-8
+    const msgBuffer = new TextEncoder().encode(message);
+    // Hash the message
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    // Convert to hex string
+    return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 }
 
-async function getSHA256Hash() {
-  let cached = retrieve('sha256');
-  if (cached) {
-    return cached;
-  }
+// Check if the input matches the hash
+async function checkAnswer() {
+    const pin = pinInput.value;
 
-  cached = await sha256(getRandomArbitrary(MIN, MAX));
-  store('sha256', cached);
-  return cached;
-}
+    if (pin.length !== 3) {
+        resultView.innerHTML = '💡 Please enter exactly 3 digits';
+        resultView.classList.remove('hidden');
+        return;
+    }
 
-async function main() {
-  sha256HashView.innerHTML = 'Calculating...';
-  const hash = await getSHA256Hash();
-  sha256HashView.innerHTML = hash;
-}
+    const hashedPin = await sha256(pin);
 
-async function test() {
-  const pin = pinInput.value;
-
-  if (pin.length !== 3) {
-    resultView.innerHTML = '💡 not 3 digits';
+    if (hashedPin === sha256HashView.innerHTML) {
+        resultView.innerHTML = '🎉 Success! You correctly deciphered the SHA256 hash!';
+        resultView.classList.add('success');
+    } else {
+        resultView.innerHTML = '❌ Not quite right. Try another 3-digit number!';
+        resultView.classList.remove('success');
+    }
     resultView.classList.remove('hidden');
-    return;
-  }
-
-  const sha256HashView = document.getElementById('sha256-hash');
-  const hasedPin = await sha256(pin);
-
-  if (hasedPin === sha256HashView.innerHTML) {
-    resultView.innerHTML = '🎉 success';
-    resultView.classList.add('success');
-  } else {
-    resultView.innerHTML = '❌ failed';
-  }
-  resultView.classList.remove('hidden');
 }
 
-// ensure pinInput only accepts numbers and is 3 digits long
-pinInput.addEventListener('input', (e) => {
-  const { value } = e.target;
-  pinInput.value = value.replace(/\D/g, '').slice(0, 3);
+// Event listeners
+checkButton.addEventListener('click', checkAnswer);
+pinInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        checkAnswer();
+    }
 });
 
-// attach the test function to the button
-document.getElementById('check').addEventListener('click', test);
-
-main();
+// Initialize the exercise
+generateRandomHash(); 
